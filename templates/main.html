@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Pi Network Sample APP</title>
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        Pi.init({
+            version: "2.0",
+            sandbox: true
+        })
+    </script>
+</head>
+
+<body>
+{% block javascript%}
+    <script>
+        const Pi = window.Pi;
+        const scopes = ['payments'];
+
+        function ajax(paymentId, method, txid){
+            const url = txid
+                ? `http://localhost:5000/complete/${paymentId}/${txid}`
+                : `http://localhost:5000/payment/${method}/${paymentId}`;
+            xhr = new XMLHttpRequest();
+            xhr.open('GET', url);
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const response = xhr.responseText;                       
+                        // Update the HTML element with the response string
+                        const responseElement = document.getElementById('response');
+                        responseElement.innerText = response;
+                    }
+                };
+                xhr.send();   
+        }
+
+        function onIncompletePaymentFound(payment) {
+                console.log("ready for server complete incomplete payment")
+                const res = ajax(payment.identifier, "complete", payment.transaction.txid)
+            
+            //the contents of payment are:
+            //identifier, user_uid, amount, memo, metadata, from_address, to_address, direction, 
+            //status {developer_approved, transaction_verified, developer_completed, cancelled, user_cancelled}
+            //transaction {txid, verified, _link}
+            //created_at, network
+
+        };
+
+        Pi.authenticate(scopes, onIncompletePaymentFound).then(function(auth) {
+            console.log(auth)
+        }).catch(function(error) {
+            console.error(error);
+        })
+
+
+        function createPayment() {
+
+            const paymentData = {
+                amount: {{ amount | safe }},
+                memo: "bp3 replicator",
+                metadata: { kittenId: 1234 }
+            };
+           const paymentCallbacks = {
+            onReadyForServerApproval: (paymentId) => {
+                console.log("ready for server approval")
+                const res = ajax(paymentId, "approve")
+            },
+            onReadyForServerCompletion: (paymentId, txid) => {
+                console.log("ready for server acompletion")
+                const res = ajax(paymentId, "complete", txid)
+            },
+            onCancel: (paymentId) => {
+                console.log("ready for server cancel")
+                const res = ajax(paymentId, "cancel")
+            },
+            onError: (error, payment) => {
+                // ...
+            },
+            };
+
+            Pi.createPayment(paymentData, paymentCallbacks);
+        }
+    </script>
+{% endblock %}    
+    <h1> Pi Network Sample App
+    </h1>
+    <header>
+        <p> Send a payment of {{ amount | safe }} to <p>
+        GAWIS5AKCZHVLQ3UMLTE22T2FJBKYVZH5KHPIPFUKKDEOUSSMN4FR4IV      
+        </p>
+
+        <button onclick="createPayment()">Yes</button>&nbsp;&nbsp;<button>No</button>
+
+
+        <p><p>
+        <div id="response"></div>
+
+    <footer>
+        <p> @copywrite 2023. All rights reserved.</p>
+    </footer>
+
+</body>
+
+</html>
